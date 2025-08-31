@@ -1,5 +1,4 @@
 using DualNumbers, ForwardDiff, GeneralBesselj, HypergeometricFunctions, Random, SpecialFunctions, Test
-
 const NTESTS = 1000
 Random.seed!(0)
 
@@ -21,12 +20,21 @@ function testbesselj(a::T, z) where {T<:Complex}
 end
 
 @testset "GeneralBesselj" begin
+  t0 = t1 = 0.0
   @testset "Float64" begin
     for i in 1:NTESTS 
       a = rand() * 10
       z = rand() * 10
-      expected = SpecialFunctions.besselj(a, z)
-      result = GeneralBesselj.besselj(a, z)
+      t0 += @elapsed expected = SpecialFunctions.besselj(a, z)
+      t1 += @elapsed result = GeneralBesselj.besselj(a, z)
+      @test result ≈ expected
+    end
+    for a in -10:10, z in -10:10
+      t0 += @elapsed expected = SpecialFunctions.besselj(a, z)
+      t1 += @elapsed result = GeneralBesselj.besselj(a, z)
+      @test result ≈ expected
+      t0 += @elapsed expected = SpecialFunctions.besselj.([a], z)
+      t1 += @elapsed result = GeneralBesselj.besselj.([a], z)
       @test result ≈ expected
     end
   end
@@ -34,8 +42,8 @@ end
     for i in 1:NTESTS 
       a = randn(ComplexF64) * 10
       z = randn(ComplexF64) * 10
-      expected = testbesselj(a, z)
-      result = GeneralBesselj.besselj(a, z)
+      t0 += @elapsed expected = testbesselj(a, z)
+      t1 += @elapsed result = GeneralBesselj.besselj(a, z)
       @test result ≈ expected
     end
   end
@@ -43,11 +51,12 @@ end
     for i in 1:NTESTS 
       a = rand(Float64, 4) * 10
       z = rand(ComplexF64) * 10
-      expected = SpecialFunctions.besselj.(a, z)
-      result = vbesselj(a, z)
+      t0 += @elapsed expected = SpecialFunctions.besselj.(a, z)
+      t1 += @elapsed result = vbesselj(a, z)
       @test result ≈ expected
     end
   end
+  #@show t1 / t0
 
   @testset "Ensure besselj composes with complex indices and Duals" begin
     @test DualNumbers.dualpart(besselj(1.0 + im, Dual(1.0, 1))) ≈
