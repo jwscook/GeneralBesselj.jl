@@ -1,6 +1,7 @@
-using DualNumbers, GeneralBesselj, HypergeometricFunctions, SpecialFunctions, Test
+using DualNumbers, ForwardDiff, GeneralBesselj, HypergeometricFunctions, Random, SpecialFunctions, Test
 
 const NTESTS = 1000
+Random.seed!(0)
 
 function isapproxinteger(z::Complex, tol=eps())
   rz, iz = reim(z)
@@ -43,9 +44,24 @@ end
       a = rand(Float64, 4) * 10
       z = rand(ComplexF64) * 10
       expected = SpecialFunctions.besselj.(a, z)
-      result = GeneralBesselj.besselj(a, z)
+      result = GeneralBesselj.vbesselj(a, z)
       @test result ≈ expected
     end
   end
 
+  @testset "Ensure besselj composes with complex indices and Duals" begin
+    @test DualNumbers.dualpart(besselj(1.0 + im, Dual(1.0, 1))) ≈
+      (besselj(0+im, 1.0) - besselj(2.0+im, 1.0)) / 2
+  end
+
+  @testset "Duals vs ForwardDiff" begin
+    for n in (3, 4, -3, -4), x in (-5.0, 5.0)
+      @test DualNumbers.dualpart(besselj(n, Dual(x, 1))) ≈
+        ForwardDiff.derivative(z->besselj(n, z), x)
+    end
+    for n in (3, 4), x in (-5.0, 5.0)
+      @test DualNumbers.dualpart(n^Dual(x, 1)) ≈
+        ForwardDiff.derivative(z->n^z, x)
+    end
+  end
 end

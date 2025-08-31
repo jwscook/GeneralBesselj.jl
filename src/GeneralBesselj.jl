@@ -1,6 +1,7 @@
 module GeneralBesselj
 
 using DualNumbers, SpecialFunctions
+import SpecialFunctions: besselj
 
 const ATOL=0.0
 const RTOL=1e-12
@@ -79,10 +80,20 @@ function besselj(a, z; rtol=RTOL, atol=ATOL, maxiters=MAXITERS)
   return T(_factor(a, z) * hypergeom_0f1_fast(a + 1, -z^2 / 4;
     atol=atol, rtol=rtol, maxiters=maxiters))
 end
-function besselj(a::AbstractVector, z; rtol=RTOL, atol=ATOL, maxiters=MAXITERS)
-  T = promote_type(eltype(a), typeof(z))
-  return T.(_factor.(a, z)) .* hypergeom_0f1_fast(a .+ 1, -z^2 / 4;
+function vbesselj(a::AbstractVector{T}, z; rtol=RTOL, atol=ATOL, maxiters=MAXITERS
+    ) where {T}
+  U = promote_type(eltype(a), typeof(z))
+  return U.(_factor.(a, z)) .* hypergeom_0f1_fast(a .+ 1, -z^2 / 4;
     atol=atol, rtol=rtol, maxiters=maxiters)
+end
+
+function besselj(n::Number, x::DualNumbers.Dual)
+  r, d = realpart(x), dualpart(x)
+  return Dual.(besselj(n, r), d * (besselj(n - 1, r) - besselj(n + 1, r)) / 2)
+end
+function besselj(n, x::DualNumbers.Dual)
+  r, d = realpart(x), dualpart(x)
+  return Dual.(besselj(n, r), d .* (besselj(n - 1, r) - besselj(n + 1, r)) / 2)
 end
 
 end # module GeneralBesselj
