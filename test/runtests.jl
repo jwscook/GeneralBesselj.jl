@@ -1,6 +1,6 @@
 using DualNumbers, GeneralBesselj, HypergeometricFunctions, SpecialFunctions, Test
 
-const NTESTS = 10
+const NTESTS = 1000
 
 function isapproxinteger(z::Complex, tol=eps())
   rz, iz = reim(z)
@@ -31,8 +31,8 @@ end
   end
   @testset "ComplexF64" begin
     for i in 1:NTESTS 
-      a = rand(ComplexF64) * 10
-      z = rand(ComplexF64) * 10
+      a = randn(ComplexF64) * 10
+      z = randn(ComplexF64) * 10
       expected = testbesselj(a, z)
       result = GeneralBesselj.besselj(a, z)
       @test result ≈ expected
