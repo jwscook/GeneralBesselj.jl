@@ -45,6 +45,10 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
 
   (!(eltype(a) <: Dual) && all(isinteger, a)) && return T(SpecialFunctions.besselj.(Int.(a), z))
 
+  if any(i->isinteger(i) && i <= 0, a)
+    throw(ErrorException("All orders must be positive if they are integers"))
+  end
+
   # Handle special cases
   sum_val = similar(a, T)
   fill!(sum_val, 1)
@@ -58,9 +62,6 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
     return sum_val
   end
 
-  if any(i->isinteger(i) && i <= 0, a)
-    throw(ErrorException("All or none of a must be positive integer"))
-  end
   atol², rtol² = atol^2, rtol^2
 
   # Initialise variables with promoted types
