@@ -33,7 +33,7 @@ function hypergeom_0f1_fast(a::Number, z; atol=ATOL, rtol=RTOL, maxiters=MAXITER
     k += 1
     term *= z / ((a + k - 1) * k)
     sum_val += term
-    abs2(term) < max(rtol^2 * abs2(sum_val), atol^2) && return sum_val
+    abs2(term) < max(rtol² * abs2(sum_val), atol²) && return sum_val
   end
   
   throw(Methoderror("No convergence reached"))
@@ -75,14 +75,14 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
     @inbounds @simd for i in 1:n
       term[i] *= z / ((a[i] + k - 1) * k)
       sum_val[i] += term[i]
-      converged &= abs2(term[i]) < max(rtol^2 * abs2(sum_val[i]), atol^2)
+      converged &= abs2(term[i]) < max(rtol² * abs2(sum_val[i]), atol²)
     end
     converged && return sum_val
   end
 
   throw(ErrorException("No convergence reached"))
 end
-_factor(z::Dual, a) = (z / 2)^a / gamma(a + 1) # Can't do Complex(Dual)
+_factor(a, z::Dual) = (z / 2)^a / gamma(a + 1) # Can't do Complex(Dual)
 function _factor(a, z)
   return if abs2(a) > 28900 # gamma(±170) ∼ 10^(±308), 170^2 = 28900
     exp(a * log(Complex(z) / 2) - loggamma(a + 1))
