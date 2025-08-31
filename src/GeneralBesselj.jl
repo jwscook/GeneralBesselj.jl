@@ -21,6 +21,8 @@ function hypergeom_0f1_fast(a::Number, z; atol=ATOL, rtol=RTOL, maxiters=MAXITER
   if isinteger(a) && a <= 0
     return iseven(a) ? T(Inf) : T(-Inf)
   end
+
+  atol², rtol² = atol^2, rtol^2
   
   # Initialise variables with promoted types
   sum_val = one(T)
@@ -31,7 +33,7 @@ function hypergeom_0f1_fast(a::Number, z; atol=ATOL, rtol=RTOL, maxiters=MAXITER
     k += 1
     term *= z / ((a + k - 1) * k)
     sum_val += term
-    abs(term) < max(rtol * abs(sum_val), atol) && return sum_val
+    abs2(term) < max(rtol^2 * abs2(sum_val), atol^2) && return sum_val
   end
   
   throw(Methoderror("No convergence reached"))
@@ -60,6 +62,7 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
   if any(i->isinteger(i) && i <= 0, a)
     throw(ErrorException("All or none of a must be positive integer"))
   end
+  atol², rtol² = atol^2, rtol^2
 
   # Initialise variables with promoted types
   term = similar(a, T)
@@ -70,7 +73,7 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
     k += 1
     @. term *= z / ((a + k - 1) * k)
     @. sum_val += term
-    all(i->abs(term[i]) < max(rtol * abs(sum_val[i]), atol), 1:n) && return sum_val
+    all(i->abs2(term[i]) < max(rtol² * abs2(sum_val[i]), atol²), 1:n) && return sum_val
   end
 
   throw(ErrorException("No convergence reached"))
