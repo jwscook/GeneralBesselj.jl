@@ -83,7 +83,13 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
   throw(ErrorException("No convergence reached"))
 end
 _factor(z::Dual, a) = (z / 2)^a / gamma(a + 1) # Can't do Complex(Dual)
-_factor(a, z) = exp(a * log(Complex(z) / 2) - loggamma(a + 1))
+function _factor(a, z)
+  return if abs2(a) > 28900 # gamma(±170) ∼ 10^(±308), 170^2 = 28900
+    exp(a * log(Complex(z) / 2) - loggamma(a + 1))
+  else
+    (z / 2)^a / gamma(a + 1)
+  end
+end
 function besselj(a, z; rtol=RTOL, atol=ATOL, maxiters=MAXITERS)
   T = promote_type(typeof(a), typeof(z))
   return T(_factor(a, z) * hypergeom_0f1_fast(a + 1, -z^2 / 4;
