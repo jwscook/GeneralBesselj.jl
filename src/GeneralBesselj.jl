@@ -49,7 +49,6 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
   sum_val = similar(a, T)
   fill!(sum_val, 1)
   z == 0 && return sum_val
-   
 
   # For negative integer a, function is undefined
   if all(isinteger, a) && all(i->i<=0, a)
@@ -71,8 +70,10 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
   k = 0
   while k < maxiters
     k += 1
-    @. term *= z / ((a + k - 1) * k)
-    @. sum_val += term
+    @inbounds @simd for i in 1:n
+      term[i] *= z / ((a[i] + k - 1) * k)
+      sum_val[i] += term[i]
+    end
     all(i->abs2(term[i]) < max(rtol² * abs2(sum_val[i]), atol²), 1:n) && return sum_val
   end
 
