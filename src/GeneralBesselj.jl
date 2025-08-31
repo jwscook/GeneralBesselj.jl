@@ -1,5 +1,7 @@
 module GeneralBesselj
 
+export vbesselj
+
 using DualNumbers, SpecialFunctions
 import SpecialFunctions: besselj
 

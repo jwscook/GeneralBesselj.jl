@@ -44,7 +44,7 @@ end
       a = rand(Float64, 4) * 10
       z = rand(ComplexF64) * 10
       expected = SpecialFunctions.besselj.(a, z)
-      result = GeneralBesselj.vbesselj(a, z)
+      result = vbesselj(a, z)
       @test result ≈ expected
     end
   end
