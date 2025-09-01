@@ -75,7 +75,7 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
     @inbounds @simd for i in 1:n
       term[i] *= z / ((a[i] + k - 1) * k)
       sum_val[i] += term[i]
-      converged &= abs2(term[i]) < max(rtol² * abs2(sum_val[i]), atol²)
+      converged && (converged &= abs2(term[i]) < max(rtol² * abs2(sum_val[i]), atol²))
     end
     converged && return sum_val
   end
