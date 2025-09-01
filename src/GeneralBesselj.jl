@@ -1,6 +1,6 @@
 module GeneralBesselj
 
-export vbesselj
+export besselj_v
 
 using DualNumbers, SpecialFunctions
 import SpecialFunctions: besselj
@@ -95,7 +95,7 @@ function besselj(a, z; rtol=RTOL, atol=ATOL, maxiters=MAXITERS)
   return T(_factor(a, z) * hypergeom_0f1_fast(a + 1, -z^2 / 4;
     atol=atol, rtol=rtol, maxiters=maxiters))
 end
-function vbesselj(a::AbstractVector{T}, z; rtol=RTOL, atol=ATOL, maxiters=MAXITERS
+function besselj_v(a::AbstractVector{T}, z; rtol=RTOL, atol=ATOL, maxiters=MAXITERS
     ) where {T}
   U = promote_type(eltype(a), typeof(z))
   return U.(_factor.(a, z)) .* hypergeom_0f1_fast(a .+ 1, -z^2 / 4;

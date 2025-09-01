@@ -52,7 +52,7 @@ end
       a = rand(Float64, 4) * 10
       z = rand(ComplexF64) * 10
       t0 += @elapsed expected = SpecialFunctions.besselj.(a, z)
-      t1 += @elapsed result = vbesselj(a, z)
+      t1 += @elapsed result = besselj_v(a, z)
       @test result ≈ expected
     end
   end
