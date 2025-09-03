@@ -9,7 +9,21 @@ const ATOL=0.0
 const RTOL=1e-12
 const MAXITERS=2^10
 
-function hypergeom_0f1_fast(a::Number, z; atol=ATOL, rtol=RTOL, maxiters=MAXITERS)
+@inline _frac(x, y) = x / y
+@inline function _frac(x::Complex, y::Complex)
+  xr, xi = reim(x)
+  yr, yi = reim(y)
+  invyy = 1 / (yr^2 + yi^2)
+  return Complex((muladd(xr, yr,   xi * yi)) * invyy,
+                 (muladd(xi, yr, - xr * yi)) * invyy)
+end
+@inline function _frac(x, y::Complex)
+  r, i = reim(y)
+  invyy = 1 / (r^2 + i^2)
+  return Complex(x * r * invyy, - x * i * invyy)
+end
+
+@inline function hypergeom_0f1(a::Number, z; atol=ATOL, rtol=RTOL, maxiters=MAXITERS)
   T = float(promote_type(typeof(a), typeof(z)))
 
   (!(typeof(a) <: Dual) && isinteger(a)) && return T(SpecialFunctions.besselj(Int(a), z))
@@ -26,15 +40,15 @@ function hypergeom_0f1_fast(a::Number, z; atol=ATOL, rtol=RTOL, maxiters=MAXITER
   k = 0
   while k < maxiters
     k += 1
-    term *= z / ((a + k - 1) * k)
+    term *= _frac(z, muladd(a + k, k, -k)) # z / ((a + k - 1) * k)
     sum_val += term
-    abs2(term) < max(rtol² * abs2(sum_val), atol²) && return sum_val
+    abs2(term) < muladd(rtol², abs2(sum_val), atol²) && return sum_val
   end
   
   throw(Methoderror("No convergence reached"))
 end
 
-function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters=MAXITERS)
+@inline function hypergeom_0f1(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters=MAXITERS)
   T = float(promote_type(eltype(a), typeof(z)))
   n = length(a)
 
@@ -56,33 +70,35 @@ function hypergeom_0f1_fast(a::AbstractVector, z; atol=ATOL, rtol=RTOL, maxiters
     k += 1
     converged = true
     @inbounds @simd for i in 1:n
-      term[i] *= z / ((a[i] + k - 1) * k)
+      term[i] *= _frac(z, muladd(a[i] + k, k, -k)) # z / (a[i] + k - 1) * k)
       sum_val[i] += term[i]
-      converged && (converged &= abs2(term[i]) < max(rtol² * abs2(sum_val[i]), atol²))
+      converged && (converged &= abs2(term[i]) < muladd(rtol², abs2(sum_val[i]), atol²))
     end
     converged && return sum_val
   end
 
   throw(ErrorException("No convergence reached"))
 end
-_factor(a, z::Dual) = (z / 2)^a / gamma(a + 1) # Can't do Complex(Dual)
-function _factor(a, z)
-  return if abs2(a) > 28900 # gamma(±170) ∼ 10^(±308), 170^2 = 28900
-    exp(a * log(Complex(z) / 2) - loggamma(a + 1))
-  else
-    (z / 2)^a / gamma(a + 1)
-  end
-end
-function besselj(a, z; rtol=RTOL, atol=ATOL, maxiters=MAXITERS)
+@inline _factor(a, loghalfz::Dual) = exp(a * loghalfz) / gamma(a + 1) # Can't do Complex(Dual)
+@inline _factor(a, loghalfz) = exp(muladd(a, loghalfz, - loggamma(a + 1)))
+function besselj(a::Number, z::Number; rtol=RTOL, atol=ATOL, maxiters=MAXITERS)
   T = float(promote_type(typeof(a), typeof(z)))
-  return T(_factor(a, z) * hypergeom_0f1_fast(a + 1, -z^2 / 4;
+  halfz = z / 2
+  loghalfz = log(Complex(halfz))
+  return T(_factor(a, loghalfz) * hypergeom_0f1(a + 1, -halfz^2;
     atol=atol, rtol=rtol, maxiters=maxiters))
 end
-function besselj_v(a::AbstractVector{T}, z; rtol=RTOL, atol=ATOL, maxiters=MAXITERS
-    ) where {T}
-  U = float(promote_type(eltype(a), typeof(z)))
-  return U.(_factor.(a, z)) .* hypergeom_0f1_fast(a .+ 1, -z^2 / 4;
-    atol=atol, rtol=rtol, maxiters=maxiters)
+function besselj_v(a, z::Number; rtol=RTOL, atol=ATOL,
+    maxiters=MAXITERS)
+  T = float(promote_type(eltype(a), typeof(z)))
+  halfz = z / 2
+  loghalfz = log(Complex(halfz))
+  output = T.(hypergeom_0f1(a .+ 1, -halfz^2;
+    atol=atol, rtol=rtol, maxiters=maxiters))
+  @inbounds @simd for i in 1:length(a)
+    output[i] *= _factor(a[i], loghalfz)
+  end
+  return output
 end
 
 function besselj(n::Number, x::DualNumbers.Dual)

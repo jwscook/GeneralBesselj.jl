@@ -14,8 +14,10 @@ function testbesselj(a::T, z) where {T<:Complex}
   if !(T <: Dual) && (isinteger(a) || isapproxinteger(a, eps()))
     return promote_type(T, typeof(z))(besselj(round(Int, real(a)), z))
   else
-    return GeneralBesselj._factor(a, z) * HypergeometricFunctions.pFq(
-      Tuple(()), (a + 1,), -z^2 / 4)
+    halfz = z / 2
+    loghalfz = log(Complex(halfz))
+    return GeneralBesselj._factor(a, loghalfz) * HypergeometricFunctions.pFq(
+      Tuple(()), (a + 1,), -halfz^2)
   end
 end
 
