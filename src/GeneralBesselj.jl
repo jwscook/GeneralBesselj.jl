@@ -5,8 +5,6 @@ export besselj_v
 using DualNumbers, HypergeometricFunctions, SpecialFunctions
 import SpecialFunctions: besselj
 
-const ATOL=0.0
-const RTOL=1e-12
 const MAXITERS=2^10
 
 @inline _frac(x, y) = x / y
@@ -24,21 +22,21 @@ end
 end
 @inline _factor(a, loghalfz::Dual) = exp(a * loghalfz) / gamma(a + 1) # Can't do Complex(Dual)
 @inline _factor(a, loghalfz) = exp(muladd(a, loghalfz, - loggamma(a + 1)))
-function besselj(a::Number, z::Number; rtol=RTOL, atol=ATOL, maxiters=MAXITERS)
+function besselj(a::Number, z::Number; maxiters=MAXITERS)
   T = float(promote_type(typeof(a), typeof(z)))
   halfz = z / 2
   loghalfz = log(Complex(halfz))
   return T(_factor(a, loghalfz) * HypergeometricFunctions.pFq(
-    Tuple(()), (a + 1,), -halfz^2))
+    Tuple(()), (a + 1,), -halfz^2; kmax=maxiters))
 end
-function besselj_v(a, z::Number; rtol=RTOL, atol=ATOL,
-    maxiters=MAXITERS)
+function besselj_v(a, z::Number; maxiters=MAXITERS)
   T = float(promote_type(eltype(a), typeof(z)))
   halfz = z / 2
   loghalfz = log(Complex(halfz))
   output = similar(a, T)
   @inbounds @simd for i in 1:length(a)
-    output[i] = HypergeometricFunctions.pFq(Tuple(()), (a[i] + 1,), -halfz^2)
+    output[i] = HypergeometricFunctions.pFq(
+      Tuple(()), (a[i] + 1,), -halfz^2; kmax=maxiters)
     output[i] *= _factor(a[i], loghalfz)
   end
   return output
