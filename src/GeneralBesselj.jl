@@ -24,6 +24,7 @@ end
 @inline _factor(a, loghalfz) = exp(muladd(a, loghalfz, - loggamma(a + 1)))
 function besselj(a::Number, z::Number; maxiters=MAXITERS)
   T = float(promote_type(typeof(a), typeof(z)))
+  (!(typeof(a) <: Dual) && isinteger(a)) && return T(besselj(round(Int, real(a)), z))
   halfz = z / 2
   loghalfz = log(Complex(halfz))
   return T(_factor(a, loghalfz) * HypergeometricFunctions.pFq(
@@ -35,9 +36,13 @@ function besselj_v(a, z::Number; maxiters=MAXITERS)
   loghalfz = log(Complex(halfz))
   output = similar(a, T)
   @inbounds @simd for i in 1:length(a)
-    output[i] = HypergeometricFunctions.pFq(
-      Tuple(()), (a[i] + 1,), -halfz^2; kmax=maxiters)
-    output[i] *= _factor(a[i], loghalfz)
+    if !(eltype(a) <: Dual) && isinteger(a[i])
+      output[i] = besselj(round(Int, real(a[i])), z)
+    else
+      output[i] = HypergeometricFunctions.pFq(
+        Tuple(()), (a[i] + 1,), -halfz^2; kmax=maxiters)
+      output[i] *= _factor(a[i], loghalfz)
+    end
   end
   return output
 end
