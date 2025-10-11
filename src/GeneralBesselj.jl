@@ -9,13 +9,18 @@ const MAXITERS=2^10
 
 @inline _factor(a, loghalfz::Dual) = exp(a * loghalfz) / gamma(a + 1) # Can't do Complex(Dual)
 @inline _factor(a, loghalfz) = exp(muladd(a, loghalfz, - loggamma(a + 1)))
+
+function _besselj_halfz(a, halfz::Number, loghalfz; maxiters=MAXITERS)
+  return _factor(a, loghalfz) * HypergeometricFunctions.pFq(
+    Tuple(()), (a + 1,), -halfz^2; kmax=maxiters)
+end
+
 function besselj(a::Number, z::Number; maxiters=MAXITERS)
   T = float(promote_type(typeof(a), typeof(z)))
   (!(typeof(a) <: Dual) && isinteger(a)) && return T(besselj(round(Int, real(a)), z))
   halfz = z / 2
   loghalfz = log(halfz * (1 + 0im))
-  return T(_factor(a, loghalfz) * HypergeometricFunctions.pFq(
-    Tuple(()), (a + 1,), -halfz^2; kmax=maxiters))
+  return _besselj_halfz(a, halfz, loghalfz; maxiters=maxiters)
 end
 function besselj_v(a, z::Number; maxiters=MAXITERS)
   T = float(promote_type(eltype(a), typeof(z)))
@@ -26,9 +31,7 @@ function besselj_v(a, z::Number; maxiters=MAXITERS)
     if !(eltype(a) <: Dual) && isinteger(a[i])
       output[i] = besselj(round(Int, real(a[i])), z)
     else
-      output[i] = HypergeometricFunctions.pFq(
-        Tuple(()), (a[i] + 1,), -halfz^2; kmax=maxiters)
-      output[i] *= _factor(a[i], loghalfz)
+      output[i] = _besselj_halfz(a[i], halfz, loghalfz; maxiters=maxiters)
     end
   end
   return output
