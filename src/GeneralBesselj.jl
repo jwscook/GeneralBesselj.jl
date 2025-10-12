@@ -12,20 +12,26 @@ const MAXITERS=2^10
 #    Tuple(()), (a + 1,), -halfz^2; kmax=maxiters)
 #end
 
+fastinv(z) = 1 / z
+function fastinv(z::Complex{T}) where T
+  a, b = real(z), imag(z)
+  invdenom = 1 / (a * a + b * b)
+  return Complex(a * invdenom, -b * invdenom)
+end
+
 function _besselj_halfz(a, halfz::Number, loghalfz, rtol=10eps(); maxiters=MAXITERS)
   # Compute J_a(z) using 0F1 series
   # J_a(z) = (z/2)^a / Γ(a+1) * 0F1(;a+1;-z²/4)
-  term = 1.0 / gamma(a + 1)
+  term = fastinv(gamma(a + 1))
   result = term
   _z²_4 = -halfz^2
   for n in 1:maxiters
-    term *= _z²_4 / (n * (a + n))
+    term *= _z²_4 * fastinv(muladd(n, a, n * n))
     result += term
     abs2(term) < abs2(rtol * result) && break
   end
   return exp(a * loghalfz + log(result))
 end
-
 
 function besselj(a::Number, z::Number, rtol=10eps(); maxiters=MAXITERS)
   T = float(promote_type(typeof(a), typeof(z)))
