@@ -2,27 +2,39 @@ module GeneralBesselj
 
 export besselj_v
 
-using DualNumbers, HypergeometricFunctions, SpecialFunctions
+using DualNumbers, SpecialFunctions
 import SpecialFunctions: besselj
 
 const MAXITERS=2^10
 
-@inline _factor(a, loghalfz::Dual) = exp(a * loghalfz) / gamma(a + 1) # Can't do Complex(Dual)
-@inline _factor(a, loghalfz) = exp(muladd(a, loghalfz, - loggamma(a + 1)))
+#function _besselj_halfz(a, halfz::Number, loghalfz; maxiters=MAXITERS)
+#  return _factor(a, loghalfz) * HypergeometricFunctions.pFq(
+#    Tuple(()), (a + 1,), -halfz^2; kmax=maxiters)
+#end
 
-function _besselj_halfz(a, halfz::Number, loghalfz; maxiters=MAXITERS)
-  return _factor(a, loghalfz) * HypergeometricFunctions.pFq(
-    Tuple(()), (a + 1,), -halfz^2; kmax=maxiters)
+function _besselj_halfz(a, halfz::Number, loghalfz, rtol=10eps(); maxiters=MAXITERS)
+  # Compute J_a(z) using 0F1 series
+  # J_a(z) = (z/2)^a / Γ(a+1) * 0F1(;a+1;-z²/4)
+  term = 1.0 / gamma(a + 1)
+  result = term
+  _z²_4 = -halfz^2
+  for n in 1:maxiters
+    term *= _z²_4 / (n * (a + n))
+    result += term
+    abs2(term) < abs2(rtol * result) && break
+  end
+  return exp(a * loghalfz + log(result))
 end
 
-function besselj(a::Number, z::Number; maxiters=MAXITERS)
+
+function besselj(a::Number, z::Number, rtol=10eps(); maxiters=MAXITERS)
   T = float(promote_type(typeof(a), typeof(z)))
   (!(typeof(a) <: Dual) && isinteger(a)) && return T(besselj(round(Int, real(a)), z))
   halfz = z / 2
   loghalfz = log(halfz * (1 + 0im))
-  return _besselj_halfz(a, halfz, loghalfz; maxiters=maxiters)
+  return _besselj_halfz(a, halfz, loghalfz, rtol; maxiters=maxiters)
 end
-function besselj_v(a, z::Number; maxiters=MAXITERS)
+function besselj_v(a, z::Number, rtol=10eps(); maxiters=MAXITERS)
   T = float(promote_type(eltype(a), typeof(z)))
   halfz = z / 2
   loghalfz = log(halfz * (1 + 0im))
@@ -31,7 +43,7 @@ function besselj_v(a, z::Number; maxiters=MAXITERS)
     if !(eltype(a) <: Dual) && isinteger(a[i])
       output[i] = besselj(round(Int, real(a[i])), z)
     else
-      output[i] = _besselj_halfz(a[i], halfz, loghalfz; maxiters=maxiters)
+      output[i] = _besselj_halfz(a[i], halfz, loghalfz, rtol; maxiters=maxiters)
     end
   end
   return output

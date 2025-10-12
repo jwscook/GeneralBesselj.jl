@@ -9,6 +9,9 @@ function isapproxinteger(z::Complex, tol=eps())
   isapprox(0, iz, rtol=tol, atol=tol) || return false
   return true
 end
+
+_factor(a, loghalfz::Dual) = exp(a * loghalfz) / gamma(a + 1) # Can't do Complex(Dual)
+_factor(a, loghalfz) = exp(muladd(a, loghalfz, - loggamma(a + 1)))
 function testbesselj(a::T, z) where {T<:Complex}
   #exp(a * log(z/2)) is faster and more accurate than (z/2)^a
   if !(T <: Dual) && (isinteger(a) || isapproxinteger(a, eps()))
@@ -16,7 +19,7 @@ function testbesselj(a::T, z) where {T<:Complex}
   else
     halfz = z / 2
     loghalfz = log(Complex(halfz))
-    return GeneralBesselj._factor(a, loghalfz) * HypergeometricFunctions.pFq(
+    return _factor(a, loghalfz) * HypergeometricFunctions.pFq(
       Tuple(()), (a + 1,), -halfz^2)
   end
 end
