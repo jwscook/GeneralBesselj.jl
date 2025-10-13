@@ -19,10 +19,10 @@ function fastinv(z::Complex{T}) where T
   return Complex(a * invdenom, -b * invdenom)
 end
 
-function _besselj_halfz(a, halfz::Number, loghalfz, rtol=10eps(); maxiters=MAXITERS)
+function _besselj_halfz(a, halfz, loghalfz, rtol=10eps(); maxiters=MAXITERS)
   # Compute J_a(z) using 0F1 series
   # J_a(z) = (z/2)^a / Γ(a+1) * 0F1(;a+1;-z²/4)
-  term = fastinv(gamma(a + 1))
+  term = fastinv(gamma(a + 1 + 0im))
   result = term
   _z²_4 = -halfz^2
   for n in 1:maxiters
@@ -30,7 +30,7 @@ function _besselj_halfz(a, halfz::Number, loghalfz, rtol=10eps(); maxiters=MAXIT
     result += term
     abs2(term) < abs2(rtol * result) && break
   end
-  return exp(a * loghalfz + log(result))
+  return exp(a * loghalfz + log(result * (1 + 0im)))
 end
 
 function besselj(a::Number, z::Number, rtol=10eps(); maxiters=MAXITERS)

@@ -28,7 +28,7 @@ end
   t0 = t1 = 0.0
   @testset "Float64" begin
     for i in 1:NTESTS 
-      a = rand() * 10
+      a = randn() * 10
       z = rand() * 10
       t0 += @elapsed expected = SpecialFunctions.besselj(a, z)
       t1 += @elapsed result = GeneralBesselj.besselj(a, z)
