@@ -21,9 +21,9 @@ end
   "%r = fneg <8 x double> %0\nret <8 x double> %r", _NT, Tuple{_NT}, a.v))
 
 @inline vfma(a::V8, b::V8, c::V8) = V8(Base.llvmcall(("""
-  declare <8 x double> @llvm.fma.v8f64(<8 x double>, <8 x double>, <8 x double>)
+  declare <8 x double> @llvm.fmuladd.v8f64(<8 x double>, <8 x double>, <8 x double>)
   define <8 x double> @entry(<8 x double> %a, <8 x double> %b, <8 x double> %c) #0 {
-    %r = call <8 x double> @llvm.fma.v8f64(<8 x double> %a, <8 x double> %b, <8 x double> %c)
+    %r = call <8 x double> @llvm.fmuladd.v8f64(<8 x double> %a, <8 x double> %b, <8 x double> %c)
     ret <8 x double> %r
   }
   attributes #0 = { alwaysinline }""", "entry"), _NT, Tuple{_NT,_NT,_NT}, a.v, b.v, c.v))

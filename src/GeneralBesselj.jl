@@ -98,6 +98,11 @@ end
 function besselj(a::Number, z::Number, rtol=10eps(); maxiters=MAXITERS)
   T = float(promote_type(typeof(a), typeof(z)))
   (!(typeof(a) <: Dual) && isinteger(a)) && return T(besselj(round(Int, real(a)), z))
+  # large |z|: the power series overflows / cancels; use the Hankel expansion
+  if _asym_ok(a, z) && abs(z) >= ASYM_MIN_ABSZ
+    r = _besselj_asym(a, z)
+    r === nothing || return r
+  end
   halfz = z / 2
   loghalfz = log(complex(halfz))
   return _besselj_halfz(a, halfz, loghalfz, rtol; maxiters=maxiters)
@@ -107,6 +112,50 @@ function besselj_v(a, z::Number, rtol=10eps(); maxiters=MAXITERS)
   halfz = z / 2
   loghalfz = log(complex(halfz))
   output = similar(a, T)
+  # [b, -b] with complex b and a real Dual z: values and derivatives from two Float64 pairs
+  if a isa AbstractVector{ComplexF64} && length(a) == 2 && z isa Dual{Float64} && !iszero(realpart(z)) &&
+      a[2] == -a[1] && isfinite(a[1]) && !isinteger(a[1]) && abs(a[1]) < 150 &&
+      isfinite(realpart(z)) && T === Dual{ComplexF64}
+    r = _besselj_pair_dual(a[1], z, rtol, maxiters)
+    if r !== nothing
+      output[1], output[2] = r
+      return output
+    end
+  end
+  # [b, -b], large |z|: one shared Hankel sum
+  if a isa AbstractVector{ComplexF64} && length(a) == 2 && z isa Union{Float64,ComplexF64} &&
+      abs(z) >= ASYM_MIN_ABSZ && isfinite(z) && a[2] == -a[1] && isfinite(a[1]) && !isinteger(a[1])
+    r = _besselj_asym_pair(a[1], z)
+    if r !== nothing
+      output[1], output[2] = r
+      return output
+    end
+  end
+  # large |z|: elementwise Hankel expansion (series overflows / cancels there)
+  if z isa Dual && abs(realpart(z)) >= ASYM_MIN_ABSZ && !(eltype(a) <: Dual)
+    for i in eachindex(a, output)
+      output[i] = besselj(a[i], z)           # Dual method: value and (J_{a-1} - J_{a+1})/2
+    end
+    return output
+  end
+  if eltype(a) <: Union{Real,Complex} && _asym_ok(first(a), z) && abs(z) >= ASYM_MIN_ABSZ
+    for i in eachindex(a, output)
+      ai = a[i]
+      r = isinteger(ai) ? nothing : _besselj_asym(ai, z)
+      output[i] = r !== nothing ? r : isinteger(ai) ? besselj(round(Int, real(ai)), z) :
+        _besselj_halfz(ai, halfz, loghalfz, rtol; maxiters=maxiters)
+    end
+    return output
+  end
+  # [b, -b] with complex b: one log-gamma + reflection, both series in one register
+  if a isa AbstractVector{ComplexF64} && length(a) == 2 && z isa Union{Float64,ComplexF64} &&
+      !iszero(z) && a[2] == -a[1] && isfinite(a[1]) && !isinteger(a[1]) && abs(a[1]) < 150
+    r = _besselj_pair(a[1], z, rtol, maxiters, complex(halfz), loghalfz)
+    if r !== nothing
+      output[1], output[2] = r
+      return output
+    end
+  end
   if a isa Union{Vector{Float64},Vector{ComplexF64}} && z isa Union{Float64,ComplexF64} && !iszero(z)
     scalar = ai -> isinteger(ai) ? ComplexF64(besselj(round(Int, real(ai)), z)) :
       ComplexF64(_besselj_halfz(ai, halfz, loghalfz, rtol; maxiters=maxiters))
@@ -131,5 +180,8 @@ function besselj(n, x::DualNumbers.Dual)
   r, d = realpart(x), dualpart(x)
   return Dual.(besselj(n, r), d .* (besselj(n - 1, r) - besselj(n + 1, r)) / 2)
 end
+
+include("pair.jl")
+include("asym.jl")
 
 end # module GeneralBesselj
