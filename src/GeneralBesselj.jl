@@ -7,6 +7,9 @@ import SpecialFunctions: besselj
 
 const MAXITERS=2^10
 
+include("vec8.jl")
+include("kernel.jl")
+
 #function _besselj_halfz(a, halfz::Number, loghalfz; maxiters=MAXITERS)
 #  return _factor(a, loghalfz) * HypergeometricFunctions.pFq(
 #    Tuple(()), (a + 1,), -halfz^2; kmax=maxiters)
@@ -104,6 +107,11 @@ function besselj_v(a, z::Number, rtol=10eps(); maxiters=MAXITERS)
   halfz = z / 2
   loghalfz = log(complex(halfz))
   output = similar(a, T)
+  if a isa Union{Vector{Float64},Vector{ComplexF64}} && z isa Union{Float64,ComplexF64} && !iszero(z)
+    scalar = ai -> isinteger(ai) ? ComplexF64(besselj(round(Int, real(ai)), z)) :
+      ComplexF64(_besselj_halfz(ai, halfz, loghalfz, rtol; maxiters=maxiters))
+    return _besselj_v_simd!(output, a, z, rtol, maxiters, scalar)
+  end
   @inbounds for i in eachindex(a, output)
     ai = a[i]
     if !(eltype(a) <: Dual) && isinteger(ai)
