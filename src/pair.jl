@@ -102,13 +102,20 @@ end
 end
 
 # Dual z (real): [J_b, J_-b] with derivatives from
-#   J_b' = J_{b-1} - (b/z) J_b,   J_{-b}' = -J_{1-b} - (b/z) J_{-b}
+#   J_b' = (b/z) J_b - J_{b+1},   J_{-b}' = -J_{1-b} - (b/z) J_{-b}
+# (the series route to J_{b-1} cancels catastrophically as b -> 0, giving garbage / NaN)
 @inline function _besselj_pair_dual(b::ComplexF64, z::Dual, rtol, maxiters)
   x = realpart(z); d = dualpart(z)
-  r = abs(x) >= ASYM_MIN_ABSZ ? _besselj_asym_pair2(b, x) : nothing
-  r === nothing && (r = _besselj_pair2(b, x, rtol, maxiters))
-  r === nothing && return nothing
-  Jp, Jm, Jp1, J1m = r
   bz = b / x
-  return Dual(Jp, d * (Jp1 - bz * Jp)), Dual(Jm, d * (-J1m - bz * Jm))
+  r = abs(x) >= ASYM_MIN_ABSZ ? _besselj_asym_pair2(b, x) : nothing
+  if r !== nothing
+    Jp, Jm, Jp1, J1m = r
+    return Dual(Jp, d * (Jp1 - bz * Jp)), Dual(Jm, d * (-J1m - bz * Jm))
+  end
+  r = _besselj_pair2(b, x, rtol, maxiters)
+  r === nothing && return nothing
+  Jp, Jm, _, J1m = r
+  q = _besselj_pair(b + 1, x, rtol, maxiters)
+  q === nothing && return nothing
+  return Dual(Jp, d * (bz * Jp - first(q))), Dual(Jm, d * (-J1m - bz * Jm))
 end
